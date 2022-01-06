@@ -33,24 +33,21 @@ struct RealityKitView: UIViewRepresentable {
         if type(of: config).supportsFrameSemantics(.sceneDepth) {
             config.frameSemantics = .sceneDepth
         } else {
-            
         }
         
-//        config.planeDetection = [.horizontal]
+        config.planeDetection = [.horizontal, .vertical]
         session.run(config)
 
 //        // Add coaching overlay
 //        let coachingOverlay = ARCoachingOverlayView()
 //        coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-//        coachingOverlay.session = session
 //        coachingOverlay.goal = .horizontalPlane
 //        view.addSubview(coachingOverlay)
-//
+
 //        // set debug options
 //        view.debugOptions = [.showFeaturePoints, .showAnchorOrigins, .showAnchorGeometry]
         
         view.debugOptions = [.showWorldOrigin]
-        
         
         // Handle ARSession events via delegate
         context.coordinator.view = view
@@ -185,7 +182,13 @@ extension RealityKitView {
                     self.frameNum = 0
                 } else {
                     let camera = frame.camera
+             
                     showInfo = "Press the button to record >>>\n"
+                    
+                    if !ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                        showInfo += "Your device does not support Depth\n"
+                    }
+                
                     showInfo += String(format: "X: %4d, Y: %4d, Z: %4d",
                                        Int(camera.eulerAngles.x / Float32.pi * 180),
                                        Int(camera.eulerAngles.y / Float32.pi * 180),
