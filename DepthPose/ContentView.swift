@@ -35,7 +35,7 @@ struct RealityKitView: UIViewRepresentable {
         } else {
         }
         
-        config.planeDetection = [.horizontal, .vertical]
+//        config.planeDetection = [.horizontal, .vertical]
         session.run(config)
 
 //        // Add coaching overlay
