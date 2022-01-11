@@ -11,7 +11,7 @@ import UIKit
 import SwiftUI
 import Foundation
 
-struct RealityKitView: UIViewRepresentable {
+struct ARViewContainer: UIViewRepresentable {
     @Binding var recordState: Bool
     @Binding var showInfo: String
     
@@ -66,7 +66,7 @@ struct RealityKitView: UIViewRepresentable {
     
 }
 
-extension RealityKitView {
+extension ARViewContainer {
     class Coordinator: NSObject, ARSessionDelegate {
         
         weak var view: ARView?
@@ -123,6 +123,18 @@ extension RealityKitView {
                     let rgbImage: Data? = self.convertImage(frame.capturedImage).jpegData(compressionQuality: 0.75)
                     let rgbPath = folderPath.appendingPathComponent(timeStamp + ".jpg")
                     
+                    // convert ARDepthData to UIImage and save it as JPEG image
+                    let depthMap: Data? = self.convertRawDepth(frame.sceneDepth!.depthMap).pngData()
+                    let depthPath = folderPath.appendingPathComponent(timeStamp + ".png")
+                    
+//                    let depthArray = self.getDepthDistance(frame.sceneDepth!.depthMap)
+////                    self.saveArray(folder: self.folderName!, timeStamp: timeStamp, array: depthArray)
+          
+                    // convert ARDepthData to UIImage and save it as JPEG image
+//                    let confMap: Data? = frame.sceneDepth!.confidenceMap.pngData()
+                    let confMap: Data? = self.convertConfDepth(frame.sceneDepth!.confidenceMap!).pngData()
+                    let confPath = folderPath.appendingPathComponent(timeStamp + "conf.png")
+
                     // save to file
                     do {
                         try rgbImage?.write(to: rgbPath)
@@ -131,10 +143,27 @@ extension RealityKitView {
                         print(error)
                     }
                     
-                    // append current frame
+                    // save to file
+                    do {
+                        try depthMap?.write(to: depthPath)
+                    } catch {
+                        self.showInfo += "Save Depth image failed; "
+                        print(error)
+                    }
+                    
+                    // save to file
+                    do {
+                        try confMap?.write(to: confPath)
+                    } catch {
+                        self.showInfo += "Save Depth image failed; "
+                        print(error)
+                    }
+                    
+                    // append current fram
                     self.saveDict[timeStamp] = [
                         "transformMat": self.arrayFromTransform(camera.transform),
                         "eulrAngle": self.arrayFromAngles(camera.eulerAngles),
+//                        "depth": depthArray,
                     ]
                     
                     self.frameNum += 1
@@ -207,11 +236,11 @@ extension RealityKitView {
             let calendar = Calendar.current
             let timeString = (
                 String(calendar.component(.year, from: date)) +
-                String(calendar.component(.month, from: date)) +
-                String(calendar.component(.day, from: date)) + "-" +
-                String(calendar.component(.hour, from: date)) +
-                String(calendar.component(.minute, from: date)) +
-                String(calendar.component(.second, from: date))
+                String(format: "%02d", calendar.component(.month, from: date)) +
+                String(format: "%02d", calendar.component(.day, from: date)) + "-" +
+                String(format: "%02d", calendar.component(.hour, from: date)) +
+                String(format: "%02d", calendar.component(.minute, from: date)) +
+                String(format: "%02d", calendar.component(.second, from: date))
             )
             return timeString
         }
@@ -239,13 +268,78 @@ extension RealityKitView {
             return uiImage
         }
         
+        class DepthData {
+            var data: [[Float32]]
+            
+            init(_ pixelBuf: CVPixelBuffer) {
+                let w = CVPixelBufferGetWidth(pixelBuf)  // 256
+                let h = CVPixelBufferGetHeight(pixelBuf)  // 192
+                self.data = Array(repeating: Array(repeating: Float(-1), count: w), count: h)
+            }
+
+            func set(x:Int,y:Int,floatData:Float) {
+                 data[y][x]=floatData
+            }
+            func get(x:Int,y:Int) -> Float {
+                return data[y][x]
+            }
+            
+        }
+        
+        func getDepthDistance(_ pixelBuf: CVPixelBuffer) -> [[Float32]] {
+            let depthFloatData = DepthData(pixelBuf)
+            
+            let depthWidth = CVPixelBufferGetWidth(pixelBuf)
+            let depthHeight = CVPixelBufferGetHeight(pixelBuf)
+            CVPixelBufferLockBaseAddress(pixelBuf, CVPixelBufferLockFlags(rawValue: 0))
+            let floatBuffer = unsafeBitCast(CVPixelBufferGetBaseAddress(pixelBuf), to: UnsafeMutablePointer<Float32>.self)
+            for y in 0...depthHeight-1 {
+                for x in 0...depthWidth-1 {
+                    let distanceAtXYPoint = floatBuffer[y*depthWidth+x]
+                    depthFloatData.set(x: x, y: y, floatData: distanceAtXYPoint)
+                }
+            }
+            return depthFloatData.data
+        }
+        
+        func saveArray(folder: String, timeStamp: String, array: [[Float32]]) {
+            let depthString:String = getStringFrom2DimArray(array: array, height: 192, width: 256)
+            // get save path
+            let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let txtPath = path.appendingPathComponent(timeStamp).appendingPathComponent(timeStamp + ".txt")
+
+            // save to file
+            do {
+                try depthString.write(to: txtPath, atomically: true, encoding: .utf8)
+            } catch {
+                self.showInfo += "Save TXT failed;"
+                print(error)
+            }
+        }
+        
+        // Auxiliary function to make String from depth map array
+        func getStringFrom2DimArray(array: [[Float32]], height: Int, width: Int) -> String{
+            var arrayStr: String = ""
+            for y in 1...height-1{
+                var lineStr = ""
+                for x in 1...width-1{
+                    lineStr += String(array[y][x])
+                    if x != width-1{
+                        lineStr += ""
+                    }
+                }
+                lineStr += "\n"
+                arrayStr += lineStr
+            }
+            return arrayStr
+        }
+        
+        func convertRawDepth(_ pixelBuf: CVPixelBuffer) ->UIImage {
 //        func convertRawDepth(_ pixelBuf: CVPixelBuffer) ->[[Float32]] {
-//            let w = CVPixelBufferGetWidth(pixelBuf)
-//            let h = CVPixelBufferGetHeight(pixelBuf)
+//            let w = CVPixelBufferGetWidth(pixelBuf)  // 256
+//            let h = CVPixelBufferGetHeight(pixelBuf)  // 192
 //            var array: [[Float]] = Array(repeating: Array(repeating: Float(), count: w), count: h)
-//
-//            CVPixelBufferRef
-//
+
 //            CVPixelBufferLockBaseAddress(pixelBuf, CVPixelBufferLockFlags(rawValue: 0))
 //            let floatBuf = unsafeBitCast(CVPixelBufferGetBaseAddress(pixelBuf), to: UnsafeMutablePointer &amp;amp;amp;lt;Float32&amp;amp;gt;.self)
 //
@@ -256,9 +350,21 @@ extension RealityKitView {
 //                }
 //                array.append(row)
 //            }
-//            return array
-//        }
+            
+            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
+            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
+            let uiImage = UIImage(cgImage: cgImage!)
+            return uiImage
+        }
         
+        func convertConfDepth(_ pixelBuf: CVPixelBuffer) ->UIImage {
+            
+//            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
+            let ciImage = CIImage(cvPixelBuffer: pixelBuf, options: [CIImageOption.auxiliaryDisparity: true])
+            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
+            let uiImage = UIImage(cgImage: cgImage!)
+            return uiImage
+        }
     }
 }
 
@@ -273,7 +379,7 @@ struct ContentView: View {
         
         
         ZStack {
-            RealityKitView(recordState: $recordState, showInfo: $showInfo)
+            ARViewContainer(recordState: $recordState, showInfo: $showInfo)
                 .ignoresSafeArea()
             VStack {
                 Spacer()
@@ -308,93 +414,6 @@ struct ContentView: View {
             }
         }
     }
-    
-    func testFunc() {
-        var saveDict = [String: Any]()
-        let transform: [[Float]] = Array(repeating: Array(repeating: Float(), count: 4), count: 4)
-        let angles: [Float] = Array(repeating: Float(), count: 3)
-        
-        saveDict[getCurrentTime()] = [
-            "timeStamp": "timeStamp1",
-            "transformMat": transform,
-            "eulrAngle": angles,
-        ]
-        
-        saveDict[getCurrentTime()] = [
-            "timeStamp": "timeStamp2",
-            "transformMat": transform,
-            "eulrAngle": angles,
-        ]
-
-        let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let folderPath = path.appendingPathComponent("Data")
-        if FileManager.default.fileExists(atPath: folderPath.path) == false {
-            do {
-                try FileManager.default.createDirectory(at: folderPath, withIntermediateDirectories: true, attributes: nil)
-            } catch {
-                showInfo = "Make folder failed!"
-                print(error)
-            }
-        }
-        
-        // convert Dictionary to JSON string and save it
-        let jsonData = try? JSONSerialization.data(withJSONObject: saveDict, options: .prettyPrinted)
-        let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
-        let jsonPath = folderPath.appendingPathComponent(getCurrentTime() + ".json")
-        
-        do {
-            try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
-        } catch {
-            showInfo += "; Save JSON failed!"
-            print(error)
-        }
-        
-        // convert CVPixelBuffer to UIImage and save it as JPEG image
-        let image = UIImage(named: "test")
-        let rgbImage: Data? = image?.jpegData(compressionQuality: 0.3)
-        let rgbPath = folderPath.appendingPathComponent(getCurrentTime() + ".jpg")
-        
-        // save to file
-        do {
-            try rgbImage?.write(to: rgbPath)
-        } catch {
-            self.showInfo += "; Save RBG image failed!"
-            print(error)
-        }
-        
-    }
-    
-    func resizedImage(at url: URL, for size: CGSize) -> UIImage? {
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height)
-        ]
-        
-        guard let imageSource = CGImageSourceCreateWithURL(url as NSURL, nil),
-              let image = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary)
-        else {
-            return nil
-        }
-        
-        return UIImage(cgImage: image)
-    }
-    
-    func getCurrentTime() -> String {
-        let date = Date()
-        let calendar = Calendar.current
-        let timeString = (
-            String(calendar.component(.year, from: date)) +
-            String(calendar.component(.month, from: date)) +
-            String(calendar.component(.day, from: date)) + "-" +
-            String(calendar.component(.hour, from: date)) +
-            String(calendar.component(.minute, from: date)) +
-            String(calendar.component(.second, from: date))
-        )
-        return timeString
-    }
-
 }
 
 struct ContentView_Previews: PreviewProvider {
