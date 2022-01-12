@@ -124,11 +124,12 @@ extension ARViewContainer {
                     let rgbPath = folderPath.appendingPathComponent(timeStamp + ".jpg")
                     
                     // convert ARDepthData to UIImage and save it as JPEG image
-                    let depthMap: Data? = self.convertRawDepth(frame.sceneDepth!.depthMap).pngData()
-                    let depthPath = folderPath.appendingPathComponent(timeStamp + ".png")
+//                    let depthMap: Data? = self.convertRawDepth(frame.sceneDepth!.depthMap).pngData()
+                    let depthPath = folderPath.appendingPathComponent(timeStamp + ".tiff")
+                    self.convertSaveRawDepth(frame.sceneDepth!.depthMap, path: depthPath)
                     
 //                    let depthArray = self.getDepthDistance(frame.sceneDepth!.depthMap)
-////                    self.saveArray(folder: self.folderName!, timeStamp: timeStamp, array: depthArray)
+//                    self.saveArray(folderPath: folderPath, timeStamp: timeStamp, array: depthArray)
           
                     // convert ARDepthData to UIImage and save it as JPEG image
 //                    let confMap: Data? = frame.sceneDepth!.confidenceMap.pngData()
@@ -143,13 +144,13 @@ extension ARViewContainer {
                         print(error)
                     }
                     
-                    // save to file
-                    do {
-                        try depthMap?.write(to: depthPath)
-                    } catch {
-                        self.showInfo += "Save Depth image failed; "
-                        print(error)
-                    }
+//                    // save to file
+//                    do {
+//                        try depthMap?.write(to: depthPath)
+//                    } catch {
+//                        self.showInfo += "Save Depth image failed; "
+//                        print(error)
+//                    }
                     
                     // save to file
                     do {
@@ -163,7 +164,7 @@ extension ARViewContainer {
                     self.saveDict[timeStamp] = [
                         "transformMat": self.arrayFromTransform(camera.transform),
                         "eulrAngle": self.arrayFromAngles(camera.eulerAngles),
-//                        "depth": depthArray,
+                        "intrinsics": self.arrayFromIntrinsics(camera.intrinsics),
                     ]
                     
                     self.frameNum += 1
@@ -260,6 +261,15 @@ extension ARViewContainer {
             return array
         }
         
+        
+        func arrayFromIntrinsics(_ intrinsics: simd_float3x3) -> [[Float]] {
+            var array: [[Float]] = Array(repeating: Array(repeating: Float(), count: 3), count: 3)
+            array[0] = [intrinsics.columns.0.x, intrinsics.columns.1.x, intrinsics.columns.2.x]
+            array[1] = [intrinsics.columns.0.y, intrinsics.columns.1.y, intrinsics.columns.2.y]
+            array[2] = [intrinsics.columns.0.z, intrinsics.columns.1.z, intrinsics.columns.2.z]
+            return array
+        }
+        
         func convertImage(_ pixelBuf: CVPixelBuffer) -> UIImage {
             let ciImage = CIImage(cvPixelBuffer: pixelBuf)
 //            let context = CIContext(options: nil)
@@ -302,11 +312,10 @@ extension ARViewContainer {
             return depthFloatData.data
         }
         
-        func saveArray(folder: String, timeStamp: String, array: [[Float32]]) {
+        func saveArray(folderPath: URL, timeStamp: String, array: [[Float32]]) {
             let depthString:String = getStringFrom2DimArray(array: array, height: 192, width: 256)
             // get save path
-            let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let txtPath = path.appendingPathComponent(timeStamp).appendingPathComponent(timeStamp + ".txt")
+            let txtPath = folderPath.appendingPathComponent(timeStamp + ".txt")
 
             // save to file
             do {
@@ -320,12 +329,12 @@ extension ARViewContainer {
         // Auxiliary function to make String from depth map array
         func getStringFrom2DimArray(array: [[Float32]], height: Int, width: Int) -> String{
             var arrayStr: String = ""
-            for y in 1...height-1{
+            for y in 0...height-1{
                 var lineStr = ""
-                for x in 1...width-1{
+                for x in 0...width-1{
                     lineStr += String(array[y][x])
                     if x != width-1{
-                        lineStr += ""
+                        lineStr += " "
                     }
                 }
                 lineStr += "\n"
@@ -335,26 +344,27 @@ extension ARViewContainer {
         }
         
         func convertRawDepth(_ pixelBuf: CVPixelBuffer) ->UIImage {
-//        func convertRawDepth(_ pixelBuf: CVPixelBuffer) ->[[Float32]] {
-//            let w = CVPixelBufferGetWidth(pixelBuf)  // 256
-//            let h = CVPixelBufferGetHeight(pixelBuf)  // 192
-//            var array: [[Float]] = Array(repeating: Array(repeating: Float(), count: w), count: h)
-
-//            CVPixelBufferLockBaseAddress(pixelBuf, CVPixelBufferLockFlags(rawValue: 0))
-//            let floatBuf = unsafeBitCast(CVPixelBufferGetBaseAddress(pixelBuf), to: UnsafeMutablePointer &amp;amp;amp;lt;Float32&amp;amp;gt;.self)
-//
-//            for y in 0...(h-1) {
-//                var row = [Float32]()
-//                for x in 0...(w-1) {
-//                    row.append(floatBuf[y * w + x])
-//                }
-//                array.append(row)
-//            }
+//            let type = CVPixelBufferGetPixelFormatType(pixelBuf)  // fdep
             
             let ciImage = CIImage(cvPixelBuffer: pixelBuf)
             let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
             let uiImage = UIImage(cgImage: cgImage!)
             return uiImage
+        }
+        
+        
+        func convertSaveRawDepth(_ pixelBuf: CVPixelBuffer, path: URL) ->Void {
+//            let type = CVPixelBufferGetPixelFormatType(pixelBuf)  // fdep
+            
+            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
+            
+            // save to file
+            do {
+                try context.writeTIFFRepresentation(of: ciImage, to: path, format: context.workingFormat, colorSpace: context.workingColorSpace!, options: [:])
+            } catch {
+                self.showInfo += "Save TIFF failed;"
+                print(error)
+            }
         }
         
         func convertConfDepth(_ pixelBuf: CVPixelBuffer) ->UIImage {
