@@ -15,35 +15,33 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var recordState: Bool
     @Binding var showInfo: String
     
-
+    
     func makeUIView(context: Context) -> ARView {
         let view = ARView()
-
+        
         // start AR session
         let session = view.session
-
+        
         let config = ARWorldTrackingConfiguration()
 
         config.worldAlignment = .gravityAndHeading // right hand, fix the direction of three axes to real-world: +x(East), +y(Up), -z(North)
-
-        config.isAutoFocusEnabled = true
-        
+        config.isAutoFocusEnabled = false
         config.isLightEstimationEnabled = false
-        
+
         if type(of: config).supportsFrameSemantics(.sceneDepth) {
-            config.frameSemantics = .sceneDepth
+            config.frameSemantics = [.sceneDepth]
         } else {
         }
         
 //        config.planeDetection = [.horizontal, .vertical]
         session.run(config)
-
+        
 //        // Add coaching overlay
 //        let coachingOverlay = ARCoachingOverlayView()
 //        coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 //        coachingOverlay.goal = .horizontalPlane
 //        view.addSubview(coachingOverlay)
-
+//
 //        // set debug options
 //        view.debugOptions = [.showFeaturePoints, .showAnchorOrigins, .showAnchorGeometry]
         
@@ -52,7 +50,7 @@ struct ARViewContainer: UIViewRepresentable {
         // Handle ARSession events via delegate
         context.coordinator.view = view
         session.delegate = context.coordinator
-
+        
         return view
     }
     
@@ -62,7 +60,6 @@ struct ARViewContainer: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(recordState: $recordState, showInfo: $showInfo)
     }
-   
     
 }
 
@@ -73,7 +70,6 @@ extension ARViewContainer {
         
         @Binding var recordState: Bool
         @Binding var showInfo: String
-
         
         var folderName: String? = nil
         var frameNum: Int64 = 0
@@ -87,23 +83,17 @@ extension ARViewContainer {
             self._showInfo = showInfo
         }
 
-    
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
-            
-             
+
             if recordState {
                 if folderName == nil {
 
                     folderName = getCurrentTime()
                 }
-                
-            
+
                 DispatchQueue.global(qos: .userInitiated).async {
                     let camera = frame.camera
                     let timeStamp: String = String(format: "%f", frame.timestamp)
-                    
-//                    let depthMap = frame.sceneDepth?.depthMap
-//                    let depthConf = frame.sceneDepth?.confidenceMap
                     
                     // get save path
                     let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -118,47 +108,25 @@ extension ARViewContainer {
                             print(error)
                         }
                     }
-
-                    // convert CVPixelBuffer to UIImage and save it as JPEG image
-                    let rgbImage: Data? = self.convertImage(frame.capturedImage).jpegData(compressionQuality: 0.75)
+                    
+                    // Save RGB, converting CVPixelBuffer to UIImage and save it as JPEG image
                     let rgbPath = folderPath.appendingPathComponent(timeStamp + ".jpg")
+                    self.convertSaveImage(frame.capturedImage, path: rgbPath)
                     
-                    // convert ARDepthData to UIImage and save it as JPEG image
-//                    let depthMap: Data? = self.convertRawDepth(frame.sceneDepth!.depthMap).pngData()
-                    let depthPath = folderPath.appendingPathComponent(timeStamp + ".tiff")
-                    self.convertSaveRawDepth(frame.sceneDepth!.depthMap, path: depthPath)
+//                    // Save Depth, converting CVPixelBuffer to CIImage and save it as PNG image   !!! error with PNG format
+//                    let depthPathPNG = folderPath.appendingPathComponent(timeStamp + ".png")
+//                    self.convertSaveDepthPNG(frame.sceneDepth!.depthMap, path: depthPathPNG)
                     
-//                    let depthArray = self.getDepthDistance(frame.sceneDepth!.depthMap)
-//                    self.saveArray(folderPath: folderPath, timeStamp: timeStamp, array: depthArray)
-          
-                    // convert ARDepthData to UIImage and save it as JPEG image
-//                    let confMap: Data? = frame.sceneDepth!.confidenceMap.pngData()
-                    let confMap: Data? = self.convertConfDepth(frame.sceneDepth!.confidenceMap!).pngData()
+                    // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
+                    let depthPathTIFF = folderPath.appendingPathComponent(timeStamp + ".tiff")
+                    self.convertSaveDepthTIFF(frame.sceneDepth!.depthMap, path: depthPathTIFF)
+                    
+                    // Save Confidence, converting CVPixelBuffer to UIImage and save it as PNG image
                     let confPath = folderPath.appendingPathComponent(timeStamp + "conf.png")
-
-                    // save to file
-                    do {
-                        try rgbImage?.write(to: rgbPath)
-                    } catch {
-                        self.showInfo += "Save RBG image failed; "
-                        print(error)
-                    }
+                    self.convertSaveConfDepth(frame.sceneDepth!.confidenceMap!, path: confPath)
                     
-//                    // save to file
-//                    do {
-//                        try depthMap?.write(to: depthPath)
-//                    } catch {
-//                        self.showInfo += "Save Depth image failed; "
-//                        print(error)
-//                    }
-                    
-                    // save to file
-                    do {
-                        try confMap?.write(to: confPath)
-                    } catch {
-                        self.showInfo += "Save Depth image failed; "
-                        print(error)
-                    }
+                    //                    let depthArray = self.getDepthDistance(frame.sceneDepth!.depthMap)
+                    //                    self.saveArray(folderPath: folderPath, timeStamp: timeStamp, array: depthArray)
                     
                     // append current fram
                     self.saveDict[timeStamp] = [
@@ -169,7 +137,6 @@ extension ARViewContainer {
                     
                     self.frameNum += 1
                     
-                    
                     self.showInfo = String(format: "FPS: %d | Frames: %d\n", Int(1/(frame.timestamp - self.lastTime)), self.frameNum)
                     self.showInfo += String(format: "X: %4d, Y: %4d, Z: %4d",
                                             Int(camera.eulerAngles.x / Float32.pi * 180),
@@ -178,60 +145,56 @@ extension ARViewContainer {
                     
                     self.lastTime = frame.timestamp
                 }
-
-        
-
+                
+                
             } else {
                 
                 if saveDict.isEmpty == false && folderName != nil {
                     
                     self.saveDict["FrameNum"] = frameNum
                     
-//                    DispatchQueue.global(qos: .userInitiated).async {
-                        // get save path
-                        let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                        let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent(self.folderName! + ".json")
-
-                        // convert Dictionary to JSON string and save it
-                        let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
-                        let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
-                        
-                        // save to file
-                        do {
-                            try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
-                        } catch {
-                            self.showInfo += "Save JSON failed;"
-                            print(error)
-                        }
-                        
-                        // clear saveDict
-                        self.saveDict = [String:Any]()
-//                    }
+                    //                    DispatchQueue.global(qos: .userInitiated).async {
+                    // get save path
+                    let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent(self.folderName! + ".json")
+                    
+                    // convert Dictionary to JSON string and save it
+                    let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
+                    let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
+                    
+                    // save to file
+                    do {
+                        try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
+                    } catch {
+                        self.showInfo += "Save JSON failed;"
+                        print(error)
+                    }
+                    
+                    // clear saveDict
+                    self.saveDict = [String:Any]()
+                    //                    }
                     
                     self.folderName = nil
                     self.frameNum = 0
+                    
                 } else {
                     let camera = frame.camera
-             
+                    
                     showInfo = "Press the button to record >>>\n"
                     
                     if !ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
                         showInfo += "Your device does not support Depth\n"
                     }
-                
+                    
                     showInfo += String(format: "X: %4d, Y: %4d, Z: %4d",
                                        Int(camera.eulerAngles.x / Float32.pi * 180),
                                        Int(camera.eulerAngles.y / Float32.pi * 180),
                                        Int(camera.eulerAngles.z / Float32.pi * 180))
                     showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
-
                 }
-
-                
             }
-            
         }
-
+        
         func getCurrentTime() -> String {
             let date = Date()
             let calendar = Calendar.current
@@ -270,12 +233,65 @@ extension ARViewContainer {
             return array
         }
         
-        func convertImage(_ pixelBuf: CVPixelBuffer) -> UIImage {
+        func convertSaveImage(_ pixelBuf: CVPixelBuffer, path: URL) -> Void {
+            
             let ciImage = CIImage(cvPixelBuffer: pixelBuf)
-//            let context = CIContext(options: nil)
             let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
-            let uiImage = UIImage(cgImage: cgImage!)
-            return uiImage
+            let uiImage = UIImage(cgImage: cgImage!).jpegData(compressionQuality: 0.75)
+            
+            // save to file
+            do {
+                try uiImage?.write(to: path)
+            } catch {
+                self.showInfo += "Save RBG image failed; "
+                print(error)
+            }
+            
+        }
+        
+        func convertSaveDepthTIFF(_ pixelBuf: CVPixelBuffer, path: URL) -> Void {
+            
+            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
+            
+            // save to file
+            do {
+                try context.writeTIFFRepresentation(of: ciImage, to: path, format: context.workingFormat, colorSpace: context.workingColorSpace!, options: [:])
+            } catch {
+                self.showInfo += "Save Depth TIFF image failed;"
+                print(error)
+            }
+        }
+        
+        func convertSaveDepthPNG(_ pixelBuf: CVPixelBuffer, path: URL) -> Void {
+            
+            // return the auxiliary image as a half-float monochrome image instead of the primary image
+            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
+            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
+            let uiImage = UIImage(cgImage: cgImage!).pngData()
+            
+            // save to file
+            do {
+                try uiImage?.write(to: path)
+            } catch {
+                self.showInfo += "Save Depth PNG image failed; "
+                print(error)
+            }
+        }
+        
+        func convertSaveConfDepth(_ pixelBuf: CVPixelBuffer, path: URL) -> Void {
+            
+            // return the auxiliary image as a half-float monochrome image instead of the primary image
+            let ciImage = CIImage(cvPixelBuffer: pixelBuf, options: [CIImageOption.auxiliaryDepth: true])
+            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
+            let uiImage = UIImage(cgImage: cgImage!).pngData()
+            
+            // save to file
+            do {
+                try uiImage?.write(to: path)
+            } catch {
+                self.showInfo += "Save Depth Confidence image failed; "
+                print(error)
+            }
         }
         
         class DepthData {
@@ -288,12 +304,12 @@ extension ARViewContainer {
             }
 
             func set(x:Int,y:Int,floatData:Float) {
-                 data[y][x]=floatData
+                data[y][x]=floatData
             }
+
             func get(x:Int,y:Int) -> Float {
                 return data[y][x]
             }
-            
         }
         
         func getDepthDistance(_ pixelBuf: CVPixelBuffer) -> [[Float32]] {
@@ -342,39 +358,6 @@ extension ARViewContainer {
             }
             return arrayStr
         }
-        
-        func convertRawDepth(_ pixelBuf: CVPixelBuffer) ->UIImage {
-//            let type = CVPixelBufferGetPixelFormatType(pixelBuf)  // fdep
-            
-            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
-            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
-            let uiImage = UIImage(cgImage: cgImage!)
-            return uiImage
-        }
-        
-        
-        func convertSaveRawDepth(_ pixelBuf: CVPixelBuffer, path: URL) ->Void {
-//            let type = CVPixelBufferGetPixelFormatType(pixelBuf)  // fdep
-            
-            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
-            
-            // save to file
-            do {
-                try context.writeTIFFRepresentation(of: ciImage, to: path, format: context.workingFormat, colorSpace: context.workingColorSpace!, options: [:])
-            } catch {
-                self.showInfo += "Save TIFF failed;"
-                print(error)
-            }
-        }
-        
-        func convertConfDepth(_ pixelBuf: CVPixelBuffer) ->UIImage {
-            
-//            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
-            let ciImage = CIImage(cvPixelBuffer: pixelBuf, options: [CIImageOption.auxiliaryDisparity: true])
-            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
-            let uiImage = UIImage(cgImage: cgImage!)
-            return uiImage
-        }
     }
 }
 
@@ -386,13 +369,10 @@ struct ContentView: View {
     let initShow = "Press the button to record >>>\n"
 
     var body: some View {
-        
-        
         ZStack {
             ARViewContainer(recordState: $recordState, showInfo: $showInfo)
                 .ignoresSafeArea()
             VStack {
-                Spacer()
                 HStack {
                     Text(showInfo)
                         .padding()
@@ -403,24 +383,18 @@ struct ContentView: View {
                                 showImage = "stop.fill"
                                 recordState = true
                                 
-    //                            DispatchQueue.global(qos: .userInitiated).async {
-    //                                testFunc()
-    //                                showInfo = "Recording ..."
-    //                            }
-                                
                             } else {
                                 showImage = "play.fill"
                                 showInfo = initShow
                                 recordState = false
                             }
                         }
-                    }) {
-                        Image(systemName: showImage)
-                    }
+                    }) {Image(systemName: showImage)}
                     .buttonStyle(.bordered)
                     .padding()
                 }
                 .background(Color.gray.opacity(0.5))
+                Spacer()
             }
         }
     }
