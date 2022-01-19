@@ -24,7 +24,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         let config = ARWorldTrackingConfiguration()
 
-        config.worldAlignment = .gravityAndHeading // right hand, fix the direction of three axes to real-world: +x(East), +y(Up), -z(North)
+        config.worldAlignment = .gravity // right hand, fix the direction of three axes to real-world: +x(East), +y(Up), -z(North)
         config.isAutoFocusEnabled = false
         config.isLightEstimationEnabled = false
 
@@ -142,7 +142,8 @@ extension ARViewContainer {
                                             Int(camera.eulerAngles.x / Float32.pi * 180),
                                             Int(camera.eulerAngles.y / Float32.pi * 180),
                                             Int(camera.eulerAngles.z / Float32.pi * 180))
-                    
+                    self.showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
+
                     self.lastTime = frame.timestamp
                 }
                 
