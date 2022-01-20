@@ -13,8 +13,10 @@ import Foundation
 
 struct ARViewContainer: UIViewRepresentable {
     @Binding var recordState: Bool
+    @Binding var recordFrames: Int
     @Binding var showInfo: String
-    
+    @Binding var showImage: String
+
     
     func makeUIView(context: Context) -> ARView {
         let view = ARView()
@@ -25,6 +27,11 @@ struct ARViewContainer: UIViewRepresentable {
         let config = ARWorldTrackingConfiguration()
 
         config.worldAlignment = .gravity // right hand, fix the direction of three axes to real-world: +x(East), +y(Up), -z(North)
+        
+        let supportFormat = type(of: config).supportedVideoFormats
+        print(supportFormat)
+//        config.videoFormat = supportFormat[0]
+        
         config.isAutoFocusEnabled = false
         config.isLightEstimationEnabled = false
 
@@ -58,7 +65,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(recordState: $recordState, showInfo: $showInfo)
+        Coordinator(recordState: $recordState, recordFrames: $recordFrames, showInfo: $showInfo, showImage: $showImage)
     }
     
 }
@@ -69,8 +76,10 @@ extension ARViewContainer {
         weak var view: ARView?
         
         @Binding var recordState: Bool
+        @Binding var recordFrames: Int
         @Binding var showInfo: String
-        
+        @Binding var showImage: String
+
         var folderName: String? = nil
         var frameNum: Int64 = 0
         var saveDict = [String:Any]()
@@ -78,9 +87,11 @@ extension ARViewContainer {
         
         var context: CIContext = CIContext(options: nil)
 
-        init(recordState: Binding<Bool>, showInfo: Binding<String>) {
+        init(recordState: Binding<Bool>, recordFrames: Binding<Int>, showInfo: Binding<String>, showImage: Binding<String>) {
             self._recordState = recordState
+            self._recordFrames = recordFrames
             self._showInfo = showInfo
+            self._showImage = showImage
         }
 
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
@@ -136,6 +147,12 @@ extension ARViewContainer {
                     ]
                     
                     self.frameNum += 1
+                    
+                    if self.recordFrames != -1 && self.frameNum == self.recordFrames {
+                        self.recordState = false
+                        self.recordFrames = -1
+                        self.showImage = "play.fill"
+                    }
                     
                     self.showInfo = String(format: "FPS: %d | Frames: %d\n", Int(1/(frame.timestamp - self.lastTime)), self.frameNum)
                     self.showInfo += String(format: "X: %4d, Y: %4d, Z: %4d",
@@ -366,32 +383,49 @@ struct ContentView: View {
     @State private var showInfo: String = "Press the button to record >>>\n"
     @State private var showImage: String = "play.fill"
     @State private var recordState: Bool = false
+    @State private var recordFrames: Int = -1
 
     let initShow = "Press the button to record >>>\n"
 
     var body: some View {
         ZStack {
-            ARViewContainer(recordState: $recordState, showInfo: $showInfo)
+            ARViewContainer(recordState: $recordState, recordFrames: $recordFrames, showInfo: $showInfo, showImage: $showImage)
                 .ignoresSafeArea()
             VStack {
                 HStack {
                     Text(showInfo)
                         .padding()
                     Spacer()
-                    Button(action: {
-                        withAnimation {
-                            if showImage == "play.fill" {
-                                showImage = "stop.fill"
-                                recordState = true
-                                
-                            } else {
-                                showImage = "play.fill"
-                                showInfo = initShow
-                                recordState = false
+                    HStack {
+                        Button(action: {
+                            withAnimation {
+                                if showImage == "play.fill" {
+                                    showImage = "stop.fill"
+                                    recordState = true
+                                    
+                                } else {
+                                    showImage = "play.fill"
+                                    showInfo = initShow
+                                    recordState = false
+                                }
                             }
-                        }
-                    }) {Image(systemName: showImage)}
-                    .buttonStyle(.bordered)
+                        }) {Image(systemName: showImage)}
+                        .buttonStyle(.bordered)
+//                        .padding()
+                        
+                        Button(action: {
+                            withAnimation {
+                                if recordFrames == -1 {
+                                    showImage = "stop.fill"
+                                    recordFrames = 1000
+                                    recordState = true
+                                }
+                            }
+                        }) {Image(systemName: showImage)}
+                        .foregroundColor(Color.red)
+                        .buttonStyle(.bordered)
+//                        .padding()
+                    }
                     .padding()
                 }
                 .background(Color.gray.opacity(0.5))
