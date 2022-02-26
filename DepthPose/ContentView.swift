@@ -32,7 +32,7 @@ struct ARViewContainer: UIViewRepresentable {
         print(supportFormat)
 //        config.videoFormat = supportFormat[0]
         
-        config.isAutoFocusEnabled = false
+        config.isAutoFocusEnabled = true
         config.isLightEstimationEnabled = false
 
         if type(of: config).supportsFrameSemantics(.sceneDepth) {
@@ -210,6 +210,9 @@ extension ARViewContainer {
                                        Int(camera.eulerAngles.z / Float32.pi * 180))
                     showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
                 }
+                
+                self.recordFrames = -1
+                
             }
         }
         
