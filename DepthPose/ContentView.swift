@@ -108,12 +108,30 @@ extension ARViewContainer {
                     
                     // get save path
                     let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                    let folderPath = path.appendingPathComponent(self.folderName!)
-                    
+                    let folderPath_rgb = path.appendingPathComponent(self.folderName!).appendingPathComponent("rgb")
+                    let folderPath_depth = path.appendingPathComponent(self.folderName!).appendingPathComponent("depth")
+                    let folderPath_conf = path.appendingPathComponent(self.folderName!).appendingPathComponent("conf")
+
                     // create folder
-                    if FileManager.default.fileExists(atPath: folderPath.path) == false {
+                    if FileManager.default.fileExists(atPath: folderPath_rgb.path) == false {
                         do {
-                            try FileManager.default.createDirectory(at: folderPath, withIntermediateDirectories: true, attributes: nil)
+                            try FileManager.default.createDirectory(at: folderPath_rgb, withIntermediateDirectories: true, attributes: nil)
+                        } catch {
+                            self.showInfo += "Create folder failed;"
+                            print(error)
+                        }
+                    }
+                    if FileManager.default.fileExists(atPath: folderPath_depth.path) == false {
+                        do {
+                            try FileManager.default.createDirectory(at: folderPath_depth, withIntermediateDirectories: true, attributes: nil)
+                        } catch {
+                            self.showInfo += "Create folder failed;"
+                            print(error)
+                        }
+                    }
+                    if FileManager.default.fileExists(atPath: folderPath_conf.path) == false {
+                        do {
+                            try FileManager.default.createDirectory(at: folderPath_conf, withIntermediateDirectories: true, attributes: nil)
                         } catch {
                             self.showInfo += "Create folder failed;"
                             print(error)
@@ -121,7 +139,7 @@ extension ARViewContainer {
                     }
                     
                     // Save RGB, converting CVPixelBuffer to UIImage and save it as JPEG image
-                    let rgbPath = folderPath.appendingPathComponent(timeStamp + ".jpg")
+                    let rgbPath = folderPath_rgb.appendingPathComponent(timeStamp + ".jpg")
                     self.convertSaveImage(frame.capturedImage, path: rgbPath)
                     
 //                    // Save Depth, converting CVPixelBuffer to CIImage and save it as PNG image   !!! error with PNG format
@@ -129,11 +147,11 @@ extension ARViewContainer {
 //                    self.convertSaveDepthPNG(frame.sceneDepth!.depthMap, path: depthPathPNG)
                     
                     // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
-                    let depthPathTIFF = folderPath.appendingPathComponent(timeStamp + ".tiff")
+                    let depthPathTIFF = folderPath_depth.appendingPathComponent(timeStamp + ".tiff")
                     self.convertSaveDepthTIFF(frame.sceneDepth!.depthMap, path: depthPathTIFF)
                     
                     // Save Confidence, converting CVPixelBuffer to UIImage and save it as PNG image
-                    let confPath = folderPath.appendingPathComponent(timeStamp + "conf.png")
+                    let confPath = folderPath_conf.appendingPathComponent(timeStamp + ".png")
                     self.convertSaveConfDepth(frame.sceneDepth!.confidenceMap!, path: confPath)
                     
                     //                    let depthArray = self.getDepthDistance(frame.sceneDepth!.depthMap)
@@ -174,7 +192,7 @@ extension ARViewContainer {
                     //                    DispatchQueue.global(qos: .userInitiated).async {
                     // get save path
                     let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent(self.folderName! + ".json")
+                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
                     
                     // convert Dictionary to JSON string and save it
                     let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
