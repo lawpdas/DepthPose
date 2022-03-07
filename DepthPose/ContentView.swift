@@ -104,6 +104,18 @@ extension ARViewContainer {
 
                 DispatchQueue.global(qos: .userInitiated).async {
                     let camera = frame.camera
+                    let state = camera.trackingState
+                    var tracking_quality: Int
+                    
+                    switch state {
+                    case .normal:
+                        tracking_quality = 2
+                    case .notAvailable:
+                        tracking_quality = 0
+                    case .limited(_):
+                        tracking_quality = 1
+                    }
+                    
                     let timeStamp: String = String(format: "%f", frame.timestamp)
                     
                     // get save path
@@ -162,6 +174,7 @@ extension ARViewContainer {
                         "transformMat": self.arrayFromTransform(camera.transform),
                         "eulrAngle": self.arrayFromAngles(camera.eulerAngles),
                         "intrinsics": self.arrayFromIntrinsics(camera.intrinsics),
+                        "tracking_quality": tracking_quality,
                     ]
                     
                     self.frameNum += 1
@@ -194,7 +207,7 @@ extension ARViewContainer {
                     let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                     let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
                     
-                    // convert Dictionary to JSON string and save it
+                    // convert Dictionary to JSON string and save itn
                     let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
                     let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
                     
