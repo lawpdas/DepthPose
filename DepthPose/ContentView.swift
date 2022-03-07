@@ -116,6 +116,8 @@ extension ARViewContainer {
                         tracking_quality = 1
                     }
                     
+                    let quality: String = String(format: "Q: %d", tracking_quality)
+                    
                     let timeStamp: String = String(format: "%f", frame.timestamp)
                     
                     // get save path
@@ -190,7 +192,8 @@ extension ARViewContainer {
                                             Int(camera.eulerAngles.x / Float32.pi * 180),
                                             Int(camera.eulerAngles.y / Float32.pi * 180),
                                             Int(camera.eulerAngles.z / Float32.pi * 180))
-                    self.showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
+                    self.showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f | ", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
+                    self.showInfo += quality
 
                     self.lastTime = frame.timestamp
                 }
@@ -228,6 +231,19 @@ extension ARViewContainer {
                     
                 } else {
                     let camera = frame.camera
+                    let state = camera.trackingState
+                    var tracking_quality: Int
+                    
+                    switch state {
+                    case .normal:
+                        tracking_quality = 2
+                    case .notAvailable:
+                        tracking_quality = 0
+                    case .limited(_):
+                        tracking_quality = 1
+                    }
+                    
+                    let quality: String = String(format: "Q: %d", tracking_quality)
                     
                     showInfo = "Press the button to record >>>\n"
                     
@@ -239,7 +255,8 @@ extension ARViewContainer {
                                        Int(camera.eulerAngles.x / Float32.pi * 180),
                                        Int(camera.eulerAngles.y / Float32.pi * 180),
                                        Int(camera.eulerAngles.z / Float32.pi * 180))
-                    showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
+                    showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f | ", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
+                    self.showInfo += quality
                 }
                 
                 self.recordFrames = -1
