@@ -10,6 +10,7 @@ import RealityKit
 import UIKit
 import SwiftUI
 import Foundation
+import SwiftyJSON
 
 struct ARViewContainer: UIViewRepresentable {
     @Binding var recordState: Bool
@@ -205,26 +206,49 @@ extension ARViewContainer {
                     
                     self.saveDict["FrameNum"] = frameNum
                     
-                    //                    DispatchQueue.global(qos: .userInitiated).async {
-                    // get save path
-                    let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
+//                    // get save path
+//                    let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+//                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
+//
+//                    // convert Dictionary to JSON string and save itn
+//                    let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
+//                    let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
+//
+//                    // save to file
+//                    do {
+//                        try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
+//                    } catch {
+//                        self.showInfo += "Save JSON failed;"
+//                        print(error)
+//                    }
+//
+//                    // clear saveDict
+//                    self.saveDict = [String:Any]()
                     
-                    // convert Dictionary to JSON string and save itn
-                    let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
-                    let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
-                    
-                    // save to file
-                    do {
-                        try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
-                    } catch {
-                        self.showInfo += "Save JSON failed;"
-                        print(error)
+                    DispatchQueue.global(qos: .userInitiated).async {
+
+                        
+                        let valid = JSONSerialization.isValidJSONObject(self.saveDict)
+                        if valid {
+                            let json = JSON(self.saveDict)
+                            let representation = json.rawString([.castNilToNSNull: true])
+                            
+                            // get save path
+                            let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                            let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
+                            
+                            // save to file
+                            do {
+                                try representation?.description.write(to: jsonPath, atomically: false, encoding: String.Encoding.utf8)
+                            } catch {
+                                self.showInfo += "Save JSON failed;"
+                                print(error)
+                            }
+                        }
+
+                        // clear saveDict
+                        self.saveDict.removeAll()
                     }
-                    
-                    // clear saveDict
-                    self.saveDict = [String:Any]()
-                    //                    }
                     
                     self.folderName = nil
                     self.frameNum = 0
