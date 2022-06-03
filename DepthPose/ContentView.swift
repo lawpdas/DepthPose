@@ -27,7 +27,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         let config = ARWorldTrackingConfiguration()
 
-        config.worldAlignment = .gravity // right hand, fix the direction of three axes to real-world: +x(East), +y(Up), -z(North)
+        config.worldAlignment = .gravityAndHeading // right hand, fix the direction of three axes to real-world: +x(East), +y(Up), -z(North)
         
         let supportFormat = type(of: config).supportedVideoFormats
         print(supportFormat)
@@ -225,18 +225,18 @@ extension ARViewContainer {
 //                    // clear saveDict
 //                    self.saveDict = [String:Any]()
                     
-                    DispatchQueue.global(qos: .userInitiated).async {
-
-                        
+//                    DispatchQueue.global(qos: .userInitiated).async {
+//
+//
                         let valid = JSONSerialization.isValidJSONObject(self.saveDict)
                         if valid {
                             let json = JSON(self.saveDict)
                             let representation = json.rawString([.castNilToNSNull: true])
-                            
+
                             // get save path
                             let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                             let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
-                            
+
                             // save to file
                             do {
                                 try representation?.description.write(to: jsonPath, atomically: false, encoding: String.Encoding.utf8)
@@ -248,7 +248,7 @@ extension ARViewContainer {
 
                         // clear saveDict
                         self.saveDict.removeAll()
-                    }
+//                    }
                     
                     self.folderName = nil
                     self.frameNum = 0
