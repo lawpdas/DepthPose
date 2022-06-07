@@ -494,6 +494,10 @@ struct ContentView: View {
                                     showImage = "stop.fill"
                                     recordFrames = 1000
                                     recordState = true
+                                } else {
+                                    showImage = "play.fill"
+                                    showInfo = initShow
+                                    recordState = false
                                 }
                             }
                         }) {Image(systemName: showImage)}
