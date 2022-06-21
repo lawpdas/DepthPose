@@ -31,7 +31,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         let supportFormat = type(of: config).supportedVideoFormats
         print(supportFormat)
-//        config.videoFormat = supportFormat[0]
+        config.videoFormat = supportFormat[0]
         
         config.isAutoFocusEnabled = true
         config.isLightEstimationEnabled = false
@@ -85,6 +85,7 @@ extension ARViewContainer {
         var frameNum: Int64 = 0
         var saveDict = [String:Any]()
         var lastTime = 0.0
+        var last_time = 0.0
         
         var context: CIContext = CIContext(options: nil)
 
@@ -94,6 +95,8 @@ extension ARViewContainer {
             self._showInfo = showInfo
             self._showImage = showImage
         }
+        
+//        let semaphore = DispatchSemaphore.init(value: 2)
 
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
 
@@ -102,153 +105,155 @@ extension ARViewContainer {
 
                     folderName = getCurrentTime()
                 }
+                
+                let currentT = frame.timestamp
 
-                DispatchQueue.global(qos: .userInitiated).async {
-                    let camera = frame.camera
-                    let state = camera.trackingState
-                    var tracking_quality: Int
+                if (currentT - last_time) > 0.02 {
+                    DispatchQueue.global(qos: .userInitiated).async {
+//                        self.semaphore.wait()
                     
-                    switch state {
-                    case .normal:
-                        tracking_quality = 2
-                    case .notAvailable:
-                        tracking_quality = 0
-                    case .limited(_):
-                        tracking_quality = 1
-                    }
-                    
-                    let quality: String = String(format: "Q: %d", tracking_quality)
-                    
-                    let timeStamp: String = String(format: "%f", frame.timestamp)
-                    
-                    // get save path
-                    let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                    let folderPath_rgb = path.appendingPathComponent(self.folderName!).appendingPathComponent("rgb")
-                    let folderPath_depth = path.appendingPathComponent(self.folderName!).appendingPathComponent("depth")
-                    let folderPath_conf = path.appendingPathComponent(self.folderName!).appendingPathComponent("conf")
+                        
+                        let camera = frame.camera
+                        let state = camera.trackingState
+                        var tracking_quality: Int
+                        
+                        switch state {
+                        case .normal:
+                            tracking_quality = 2
+                        case .notAvailable:
+                            tracking_quality = 0
+                        case .limited(_):
+                            tracking_quality = 1
+                        }
+                        
+                        let quality: String = String(format: "Q: %d", tracking_quality)
+                        
+                        let timeStamp: String = String(format: "%f", frame.timestamp)
+                        
+                        // get save path
+                        let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                        let folderPath_rgb = path.appendingPathComponent(self.folderName!).appendingPathComponent("rgb")
+                        let folderPath_depth = path.appendingPathComponent(self.folderName!).appendingPathComponent("depth")
+                        let folderPath_conf = path.appendingPathComponent(self.folderName!).appendingPathComponent("conf")
 
-                    // create folder
-                    if FileManager.default.fileExists(atPath: folderPath_rgb.path) == false {
-                        do {
-                            try FileManager.default.createDirectory(at: folderPath_rgb, withIntermediateDirectories: true, attributes: nil)
-                        } catch {
-                            self.showInfo += "Create folder failed;"
-                            print(error)
+                        // create folder
+                        if FileManager.default.fileExists(atPath: folderPath_rgb.path) == false {
+                            do {
+                                try FileManager.default.createDirectory(at: folderPath_rgb, withIntermediateDirectories: true, attributes: nil)
+                            } catch {
+                                self.showInfo += "Create folder failed;"
+                                print(error)
+                            }
                         }
-                    }
-                    if FileManager.default.fileExists(atPath: folderPath_depth.path) == false {
-                        do {
-                            try FileManager.default.createDirectory(at: folderPath_depth, withIntermediateDirectories: true, attributes: nil)
-                        } catch {
-                            self.showInfo += "Create folder failed;"
-                            print(error)
+                        if FileManager.default.fileExists(atPath: folderPath_depth.path) == false {
+                            do {
+                                try FileManager.default.createDirectory(at: folderPath_depth, withIntermediateDirectories: true, attributes: nil)
+                            } catch {
+                                self.showInfo += "Create folder failed;"
+                                print(error)
+                            }
                         }
-                    }
-                    if FileManager.default.fileExists(atPath: folderPath_conf.path) == false {
-                        do {
-                            try FileManager.default.createDirectory(at: folderPath_conf, withIntermediateDirectories: true, attributes: nil)
-                        } catch {
-                            self.showInfo += "Create folder failed;"
-                            print(error)
+                        if FileManager.default.fileExists(atPath: folderPath_conf.path) == false {
+                            do {
+                                try FileManager.default.createDirectory(at: folderPath_conf, withIntermediateDirectories: true, attributes: nil)
+                            } catch {
+                                self.showInfo += "Create folder failed;"
+                                print(error)
+                            }
                         }
-                    }
                     
-                    // Save RGB, converting CVPixelBuffer to UIImage and save it as JPEG image
-                    let rgbPath = folderPath_rgb.appendingPathComponent(timeStamp + ".jpg")
-                    self.convertSaveImage(frame.capturedImage, path: rgbPath)
-                    
-//                    // Save Depth, converting CVPixelBuffer to CIImage and save it as PNG image   !!! error with PNG format
-//                    let depthPathPNG = folderPath.appendingPathComponent(timeStamp + ".png")
-//                    self.convertSaveDepthPNG(frame.sceneDepth!.depthMap, path: depthPathPNG)
-                    
-                    // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
-                    let depthPathTIFF = folderPath_depth.appendingPathComponent(timeStamp + ".tiff")
-                    self.convertSaveDepthTIFF(frame.sceneDepth!.depthMap, path: depthPathTIFF)
-                    
-                    // Save Confidence, converting CVPixelBuffer to UIImage and save it as PNG image
-                    let confPath = folderPath_conf.appendingPathComponent(timeStamp + ".png")
-                    self.convertSaveConfDepth(frame.sceneDepth!.confidenceMap!, path: confPath)
-                    
-                    //                    let depthArray = self.getDepthDistance(frame.sceneDepth!.depthMap)
-                    //                    self.saveArray(folderPath: folderPath, timeStamp: timeStamp, array: depthArray)
-                    
-                    // append current fram
-                    self.saveDict[timeStamp] = [
-                        "transformMat": self.arrayFromTransform(camera.transform),
-                        "eulrAngle": self.arrayFromAngles(camera.eulerAngles),
-                        "intrinsics": self.arrayFromIntrinsics(camera.intrinsics),
-                        "tracking_quality": tracking_quality,
-                    ]
-                    
-                    self.frameNum += 1
-                    
-                    if self.recordFrames != -1 && self.frameNum == self.recordFrames {
-                        self.recordState = false
-                        self.recordFrames = -1
-                        self.showImage = "play.fill"
-                    }
-                    
-                    self.showInfo = String(format: "FPS: %d | Frames: %d\n", Int(1/(frame.timestamp - self.lastTime)), self.frameNum)
-                    self.showInfo += String(format: "X: %4d, Y: %4d, Z: %4d",
-                                            Int(camera.eulerAngles.x / Float32.pi * 180),
-                                            Int(camera.eulerAngles.y / Float32.pi * 180),
-                                            Int(camera.eulerAngles.z / Float32.pi * 180))
-                    self.showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f | ", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
-                    self.showInfo += quality
 
-                    self.lastTime = frame.timestamp
+                        // Save RGB, converting CVPixelBuffer to UIImage and save it as JPEG image
+                        let rgbPath = folderPath_rgb.appendingPathComponent(timeStamp + ".jpg")
+                        self.convertSaveImage(frame.capturedImage, path: rgbPath)
+                        
+    //                    // Save Depth, converting CVPixelBuffer to CIImage and save it as PNG image   !!! error with PNG format
+    //                    let depthPathPNG = folderPath.appendingPathComponent(timeStamp + ".png")
+    //                    self.convertSaveDepthPNG(frame.sceneDepth!.depthMap, path: depthPathPNG)
+                        
+                        // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
+                        let depthPathTIFF = folderPath_depth.appendingPathComponent(timeStamp + ".tiff")
+                        self.convertSaveDepthTIFF(frame.sceneDepth!.depthMap, path: depthPathTIFF)
+                        
+                        // Save Confidence, converting CVPixelBuffer to UIImage and save it as PNG image
+                        let confPath = folderPath_conf.appendingPathComponent(timeStamp + ".png")
+                        self.convertSaveConfDepth(frame.sceneDepth!.confidenceMap!, path: confPath)
+                        
+                        // append current fram
+                        self.saveDict[timeStamp] = [
+                            "transformMat": self.arrayFromTransform(camera.transform),
+                            "eulrAngle": self.arrayFromAngles(camera.eulerAngles),
+                            "intrinsics": self.arrayFromIntrinsics(camera.intrinsics),
+                            "tracking_quality": tracking_quality,
+                        ]
+                    
+                        if self.recordFrames != -1 && self.frameNum == self.recordFrames {
+                            self.recordState = false
+                            self.recordFrames = -1
+                            self.showImage = "play.fill"
+                        }
+                        
+                        self.showInfo = String(format: "FPS: %d | Frames: %d\n", Int(1/(frame.timestamp - self.lastTime)), self.frameNum)
+                        self.showInfo += String(format: "X: %4d, Y: %4d, Z: %4d",
+                                                Int(camera.eulerAngles.x / Float32.pi * 180),
+                                                Int(camera.eulerAngles.y / Float32.pi * 180),
+                                                Int(camera.eulerAngles.z / Float32.pi * 180))
+                        self.showInfo += String(format: " | X: %.2f, Y: %.2f, Z: %.2f | ", camera.transform.columns.3.x, camera.transform.columns.3.y, camera.transform.columns.3.z)
+                        self.showInfo += quality
+                        self.frameNum += 1
+                        self.lastTime = currentT
+
+//                        self.semaphore.signal()
+                    }
+                    last_time = currentT
                 }
-                
-                
             } else {
                 
                 if saveDict.isEmpty == false && folderName != nil {
                     
                     self.saveDict["FrameNum"] = frameNum
                     
-//                    // get save path
-//                    let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-//                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
-//
-//                    // convert Dictionary to JSON string and save itn
-//                    let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
-//                    let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
-//
-//                    // save to file
-//                    do {
-//                        try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
-//                    } catch {
-//                        self.showInfo += "Save JSON failed;"
-//                        print(error)
-//                    }
-//
-//                    // clear saveDict
-//                    self.saveDict = [String:Any]()
+                    // get save path
+                    let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                    let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
+
+                    // convert Dictionary to JSON string and save itn
+                    let jsonData = try? JSONSerialization.data(withJSONObject: self.saveDict, options: .prettyPrinted)
+                    let jsonString = String(data: jsonData!, encoding: String.Encoding.ascii)
+
+                    // save to file
+                    do {
+                        try jsonString?.write(to: jsonPath, atomically: true, encoding: .utf8)
+                    } catch {
+                        self.showInfo += "Save JSON failed;"
+                        print(error)
+                    }
+
+                    // clear saveDict
+                    self.saveDict = [String:Any]()
                     
-//                    DispatchQueue.global(qos: .userInitiated).async {
+////                    DispatchQueue.global(qos: .userInitiated).async {
+//                        let valid = JSONSerialization.isValidJSONObject(self.saveDict)
+//                        if valid {
+//                            let json = JSON(self.saveDict)
+//                            let representation = json.rawString([.castNilToNSNull: true])
 //
+//                            // get save path
+//                            let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+//                            let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
 //
-                        let valid = JSONSerialization.isValidJSONObject(self.saveDict)
-                        if valid {
-                            let json = JSON(self.saveDict)
-                            let representation = json.rawString([.castNilToNSNull: true])
-
-                            // get save path
-                            let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                            let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
-
-                            // save to file
-                            do {
-                                try representation?.description.write(to: jsonPath, atomically: false, encoding: String.Encoding.utf8)
-                            } catch {
-                                self.showInfo += "Save JSON failed;"
-                                print(error)
-                            }
-                        }
-
-                        // clear saveDict
-                        self.saveDict.removeAll()
-//                    }
+//                            // save to file
+//                            do {
+//                                try representation?.description.write(to: jsonPath, atomically: false, encoding: String.Encoding.utf8)
+//                            } catch {
+//                                self.showInfo += "Save JSON failed;"
+//                                print(error)
+//                            }
+//                        }
+//
+//                        // clear saveDict
+//                        self.saveDict.removeAll()
+////                    }
                     
                     self.folderName = nil
                     self.frameNum = 0
@@ -492,7 +497,7 @@ struct ContentView: View {
                             withAnimation {
                                 if recordFrames == -1 {
                                     showImage = "stop.fill"
-                                    recordFrames = 1000
+                                    recordFrames = 2000
                                     recordState = true
                                 } else {
                                     showImage = "play.fill"
