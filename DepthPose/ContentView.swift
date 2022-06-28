@@ -36,11 +36,12 @@ struct ARViewContainer: UIViewRepresentable {
         config.isAutoFocusEnabled = true
         config.isLightEstimationEnabled = false
 
-        if type(of: config).supportsFrameSemantics(.sceneDepth) {
-            config.frameSemantics = [.sceneDepth]
-        } else {
-        }
-        
+//        if !type(of: config).supportsFrameSemantics(.sceneDepth) {
+//            config.frameSemantics = [.sceneDepth]
+//        } else {
+//        }
+        config.frameSemantics = [.smoothedSceneDepth]
+
 //        config.planeDetection = [.horizontal, .vertical]
         session.run(config)
         
@@ -173,11 +174,11 @@ extension ARViewContainer {
                         
                         // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
                         let depthPathTIFF = folderPath_depth.appendingPathComponent(timeStamp + ".tiff")
-                        self.convertSaveDepthTIFF(frame.sceneDepth!.depthMap, path: depthPathTIFF)
+                        self.convertSaveDepthTIFF(frame.smoothedSceneDepth!.depthMap, path: depthPathTIFF)
                         
                         // Save Confidence, converting CVPixelBuffer to UIImage and save it as PNG image
                         let confPath = folderPath_conf.appendingPathComponent(timeStamp + ".png")
-                        self.convertSaveConfDepth(frame.sceneDepth!.confidenceMap!, path: confPath)
+                        self.convertSaveConfDepth(frame.smoothedSceneDepth!.confidenceMap!, path: confPath)
                         
                         // append current fram
                         self.saveDict[timeStamp] = [
@@ -497,7 +498,7 @@ struct ContentView: View {
                             withAnimation {
                                 if recordFrames == -1 {
                                     showImage = "stop.fill"
-                                    recordFrames = 2000
+                                    recordFrames = 1300
                                     recordState = true
                                 } else {
                                     showImage = "play.fill"
