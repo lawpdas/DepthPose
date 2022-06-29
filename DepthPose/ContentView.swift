@@ -40,19 +40,8 @@ struct ARViewContainer: UIViewRepresentable {
 //            config.frameSemantics = [.sceneDepth]
 //        } else {
 //        }
-        config.frameSemantics = [.smoothedSceneDepth]
-
-//        config.planeDetection = [.horizontal, .vertical]
+        config.frameSemantics = [.sceneDepth, .smoothedSceneDepth]
         session.run(config)
-        
-//        // Add coaching overlay
-//        let coachingOverlay = ARCoachingOverlayView()
-//        coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-//        coachingOverlay.goal = .horizontalPlane
-//        view.addSubview(coachingOverlay)
-//
-//        // set debug options
-//        view.debugOptions = [.showFeaturePoints, .showAnchorOrigins, .showAnchorGeometry]
         
         view.debugOptions = [.showWorldOrigin]
         
@@ -108,8 +97,8 @@ extension ARViewContainer {
                 }
                 
                 let currentT = frame.timestamp
-
-                if (currentT - last_time) > 0.02 {
+                
+                if (currentT - last_time) > 0.02 { // >0.016 ==> 30fps
                     DispatchQueue.global(qos: .userInitiated).async {
 //                        self.semaphore.wait()
                     
@@ -167,10 +156,6 @@ extension ARViewContainer {
                         // Save RGB, converting CVPixelBuffer to UIImage and save it as JPEG image
                         let rgbPath = folderPath_rgb.appendingPathComponent(timeStamp + ".jpg")
                         self.convertSaveImage(frame.capturedImage, path: rgbPath)
-                        
-    //                    // Save Depth, converting CVPixelBuffer to CIImage and save it as PNG image   !!! error with PNG format
-    //                    let depthPathPNG = folderPath.appendingPathComponent(timeStamp + ".png")
-    //                    self.convertSaveDepthPNG(frame.sceneDepth!.depthMap, path: depthPathPNG)
                         
                         // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
                         let depthPathTIFF = folderPath_depth.appendingPathComponent(timeStamp + ".tiff")
@@ -232,29 +217,6 @@ extension ARViewContainer {
 
                     // clear saveDict
                     self.saveDict = [String:Any]()
-                    
-////                    DispatchQueue.global(qos: .userInitiated).async {
-//                        let valid = JSONSerialization.isValidJSONObject(self.saveDict)
-//                        if valid {
-//                            let json = JSON(self.saveDict)
-//                            let representation = json.rawString([.castNilToNSNull: true])
-//
-//                            // get save path
-//                            let path: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-//                            let jsonPath = path.appendingPathComponent(self.folderName!).appendingPathComponent("meta.json")
-//
-//                            // save to file
-//                            do {
-//                                try representation?.description.write(to: jsonPath, atomically: false, encoding: String.Encoding.utf8)
-//                            } catch {
-//                                self.showInfo += "Save JSON failed;"
-//                                print(error)
-//                            }
-//                        }
-//
-//                        // clear saveDict
-//                        self.saveDict.removeAll()
-////                    }
                     
                     self.folderName = nil
                     self.frameNum = 0
@@ -357,22 +319,6 @@ extension ARViewContainer {
                 try context.writeTIFFRepresentation(of: ciImage, to: path, format: context.workingFormat, colorSpace: context.workingColorSpace!, options: [:])
             } catch {
                 self.showInfo += "Save Depth TIFF image failed;"
-                print(error)
-            }
-        }
-        
-        func convertSaveDepthPNG(_ pixelBuf: CVPixelBuffer, path: URL) -> Void {
-            
-            // return the auxiliary image as a half-float monochrome image instead of the primary image
-            let ciImage = CIImage(cvPixelBuffer: pixelBuf)
-            let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
-            let uiImage = UIImage(cgImage: cgImage!).pngData()
-            
-            // save to file
-            do {
-                try uiImage?.write(to: path)
-            } catch {
-                self.showInfo += "Save Depth PNG image failed; "
                 print(error)
             }
         }
@@ -492,13 +438,12 @@ struct ContentView: View {
                             }
                         }) {Image(systemName: showImage)}
                         .buttonStyle(.bordered)
-//                        .padding()
                         
                         Button(action: {
                             withAnimation {
                                 if recordFrames == -1 {
                                     showImage = "stop.fill"
-                                    recordFrames = 1300
+                                    recordFrames = 2000
                                     recordState = true
                                 } else {
                                     showImage = "play.fill"
@@ -509,7 +454,6 @@ struct ContentView: View {
                         }) {Image(systemName: showImage)}
                         .foregroundColor(Color.red)
                         .buttonStyle(.bordered)
-//                        .padding()
                     }
                     .padding()
                 }
