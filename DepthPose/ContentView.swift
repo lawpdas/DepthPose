@@ -298,7 +298,7 @@ extension ARViewContainer {
             
             let ciImage = CIImage(cvPixelBuffer: pixelBuf)
             let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
-            let uiImage = UIImage(cgImage: cgImage!).jpegData(compressionQuality: 0.95)
+            let uiImage = UIImage(cgImage: cgImage!).jpegData(compressionQuality: 0.70)
             
             // save to file
             do {
