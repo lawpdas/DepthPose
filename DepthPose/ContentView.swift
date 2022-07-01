@@ -36,11 +36,11 @@ struct ARViewContainer: UIViewRepresentable {
         config.isAutoFocusEnabled = true
         config.isLightEstimationEnabled = false
 
-//        if !type(of: config).supportsFrameSemantics(.sceneDepth) {
-//            config.frameSemantics = [.sceneDepth]
-//        } else {
-//        }
-        config.frameSemantics = [.sceneDepth, .smoothedSceneDepth]
+        if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+            config.frameSemantics = [.sceneDepth]
+        } else {
+        }
+//        config.frameSemantics = [.sceneDepth, .smoothedSceneDepth]
         session.run(config)
         
         view.debugOptions = [.showWorldOrigin]
@@ -159,11 +159,11 @@ extension ARViewContainer {
                         
                         // Save Depth, converting CVPixelBuffer to CIImage and save it as TIFF image
                         let depthPathTIFF = folderPath_depth.appendingPathComponent(timeStamp + ".tiff")
-                        self.convertSaveDepthTIFF(frame.smoothedSceneDepth!.depthMap, path: depthPathTIFF)
+                        self.convertSaveDepthTIFF(frame.sceneDepth!.depthMap, path: depthPathTIFF)
                         
                         // Save Confidence, converting CVPixelBuffer to UIImage and save it as PNG image
                         let confPath = folderPath_conf.appendingPathComponent(timeStamp + ".png")
-                        self.convertSaveConfDepth(frame.smoothedSceneDepth!.confidenceMap!, path: confPath)
+                        self.convertSaveConfDepth(frame.sceneDepth!.confidenceMap!, path: confPath)
                         
                         // append current fram
                         self.saveDict[timeStamp] = [
@@ -298,7 +298,7 @@ extension ARViewContainer {
             
             let ciImage = CIImage(cvPixelBuffer: pixelBuf)
             let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
-            let uiImage = UIImage(cgImage: cgImage!).jpegData(compressionQuality: 0.75)
+            let uiImage = UIImage(cgImage: cgImage!).jpegData(compressionQuality: 0.95)
             
             // save to file
             do {
@@ -443,7 +443,7 @@ struct ContentView: View {
                             withAnimation {
                                 if recordFrames == -1 {
                                     showImage = "stop.fill"
-                                    recordFrames = 2000
+                                    recordFrames = 1500
                                     recordState = true
                                 } else {
                                     showImage = "play.fill"
