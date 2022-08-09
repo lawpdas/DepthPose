@@ -14,7 +14,6 @@
 		B29496CB277C6B5F00D62328 /* DepthPoseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29496CA277C6B5F00D62328 /* DepthPoseTests.swift */; };
 		B29496D5277C6B5F00D62328 /* DepthPoseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29496D4277C6B5F00D62328 /* DepthPoseUITests.swift */; };
 		B29496D7277C6B5F00D62328 /* DepthPoseUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29496D6277C6B5F00D62328 /* DepthPoseUITestsLaunchTests.swift */; };
-		B2C05226281AB48300D7DD91 /* SwiftyJSON in Frameworks */ = {isa = PBXBuildFile; productRef = B2C05225281AB48300D7DD91 /* SwiftyJSON */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,7 +52,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B2C05226281AB48300D7DD91 /* SwiftyJSON in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -148,7 +146,6 @@
 			);
 			name = DepthPose;
 			packageProductDependencies = (
-				B2C05225281AB48300D7DD91 /* SwiftyJSON */,
 			);
 			productName = DepthPose;
 			productReference = B29496B6277C6B5D00D62328 /* DepthPose.app */;
@@ -614,14 +611,6 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		B2C05225281AB48300D7DD91 /* SwiftyJSON */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B2C05224281AB48300D7DD91 /* XCRemoteSwiftPackageReference "SwiftyJSON" */;
-			productName = SwiftyJSON;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B29496AE277C6B5D00D62328 /* Project object */;
 }

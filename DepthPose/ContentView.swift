@@ -10,7 +10,6 @@ import RealityKit
 import UIKit
 import SwiftUI
 import Foundation
-import SwiftyJSON
 
 struct ARViewContainer: UIViewRepresentable {
     @Binding var recordState: Bool
