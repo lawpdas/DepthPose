@@ -220,7 +220,6 @@
 			);
 			mainGroup = B29496AD277C6B5D00D62328;
 			packageReferences = (
-				B2C05224281AB48300D7DD91 /* XCRemoteSwiftPackageReference "SwiftyJSON" */,
 			);
 			productRefGroup = B29496B7277C6B5D00D62328 /* Products */;
 			projectDirPath = "";
@@ -600,17 +599,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		B2C05224281AB48300D7DD91 /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SwiftyJSON/SwiftyJSON";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 	};
 	rootObject = B29496AE277C6B5D00D62328 /* Project object */;
 }
